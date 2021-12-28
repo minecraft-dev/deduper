@@ -32,7 +32,7 @@ import kotlinx.serialization.json.Json
 import org.jdbi.v3.core.Jdbi
 import org.kohsuke.github.GitHub
 
-class SubmitHandler(private val gitHub: GitHub, private val jdbi: Jdbi) {
+class SubmitHandler(private val gh: GitHub, private val jdbi: Jdbi) {
     suspend fun CallContext.handleSubmit() {
         val contentType = call.request.contentType()
         if (!contentType.match(ContentType.MultiPart.FormData)) {

@@ -48,12 +48,12 @@ private val duplicateRegex = Regex("(?i)^\\s*duplicate of\\s+#(\\d+)\\s*$")
 private val numberRegex = Regex("\\d+")
 private val newLineRegex = Regex("[\r\n]+")
 
-suspend fun scheduleSyncIssues(gitHub: GitHub, jdbi: Jdbi) {
+suspend fun scheduleSyncIssues(gh: GitHub, jdbi: Jdbi) {
     // Daily sync and update issues to make sure we don't miss anything, such as a failed webhook
     try {
         do {
-            syncIssues(gitHub, jdbi)
-            updateIssues(gitHub, jdbi)
+            syncIssues(gh, jdbi)
+            updateIssues(gh, jdbi)
 
             val now = ZonedDateTime.now().withZoneSameInstant(ZoneOffset.UTC)
             val next = now.plusDays(1).with(LocalTime.MIDNIGHT)
@@ -65,10 +65,10 @@ suspend fun scheduleSyncIssues(gitHub: GitHub, jdbi: Jdbi) {
     }
 }
 
-private suspend fun syncIssues(gitHub: GitHub, jdbi: Jdbi) = coroutineScope {
+private suspend fun syncIssues(gh: GitHub, jdbi: Jdbi) = coroutineScope {
     logger.info("Syncing issues from GitHub")
 
-    val repo = gitHub.getRepository("minecraft-dev/mcdev-error-report")
+    val repo = gh.getRepository("minecraft-dev/mcdev-error-report")
 
     try {
         jdbi.open().use { handle ->
@@ -136,8 +136,8 @@ private suspend fun syncIssues(gitHub: GitHub, jdbi: Jdbi) = coroutineScope {
     }
 }
 
-private fun updateIssues(gitHub: GitHub, jdbi: Jdbi) {
-    val repo = gitHub.getRepository("minecraft-dev/mcdev-error-report")
+private fun updateIssues(gh: GitHub, jdbi: Jdbi) {
+    val repo = gh.getRepository("minecraft-dev/mcdev-error-report")
 
     try {
         jdbi.open().use { handle ->

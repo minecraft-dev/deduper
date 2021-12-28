@@ -41,7 +41,7 @@ fun main() {
     logger.info("Reading config")
     val config = DeduperConfig.readConfig()
 
-    val gitHub = config.github.initializeApp()
+    val gh = config.github.initializeApp()
 
     try {
         config.database.openDbConnection().use { db ->
@@ -59,7 +59,7 @@ fun main() {
                     json()
                 }
 
-                configureRouting(gitHub, jdbi, config)
+                configureRouting(gh, jdbi, config)
             }
 
             app.addShutdownHook {
@@ -71,7 +71,7 @@ fun main() {
 
             app.environment.monitor.subscribe(ApplicationStarted) {
                 it.launch {
-                    scheduleSyncIssues(gitHub, jdbi)
+                    scheduleSyncIssues(gh, jdbi)
                 }
             }
 

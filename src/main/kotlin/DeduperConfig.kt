@@ -85,6 +85,6 @@ data class DatabaseConfig(
 data class GitHubApiConfig(
     val privateKeyFile: String,
     val appId: String,
-    val installationId: Long,
+    val organization: String,
     val webhookSecret: String
 )

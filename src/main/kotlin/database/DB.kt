@@ -54,12 +54,6 @@ fun DataSource.configureJdbi(): Jdbi {
     jdbi.installPlugin(KotlinPlugin())
     jdbi.installPlugin(KotlinSqlObjectPlugin())
 
-//    jdbi.registerArgument(
-//        ArgumentFactory { _, value, _ ->
-//            Optional.ofNullable((value as? IssueState)?.name?.lowercase()?.let(ObjectArgument::of))
-//        }
-//    )
-
     return jdbi
 }
 

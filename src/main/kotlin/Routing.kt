@@ -37,7 +37,7 @@ import org.kohsuke.github.GitHub
 
 typealias CallContext = PipelineContext<Unit, ApplicationCall>
 
-fun Application.configureRouting(gitHub: GitHub, jdbi: Jdbi, config: DeduperConfig) {
+fun Application.configureRouting(gh: GitHub, jdbi: Jdbi, config: DeduperConfig) {
     install(StatusPages) {
         exception<BadRequestException> {
             call.respond(HttpStatusCode.BadRequest, MessageResponse(it.message))
@@ -50,8 +50,8 @@ fun Application.configureRouting(gitHub: GitHub, jdbi: Jdbi, config: DeduperConf
         }
     }
 
-    val submitHandler = SubmitHandler(gitHub, jdbi)
-    val webhookHandler = WebhookHandler(gitHub, jdbi)
+    val submitHandler = SubmitHandler(gh, jdbi)
+    val webhookHandler = WebhookHandler(gh, jdbi)
 
     routing {
         route("/api/v1") {

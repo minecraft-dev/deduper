@@ -35,7 +35,7 @@ import org.jdbi.v3.sqlobject.kotlin.attach
 import org.kohsuke.github.GHEventPayload
 import org.kohsuke.github.GitHub
 
-class WebhookHandler(private val gitHub: GitHub, private val jdbi: Jdbi) {
+class WebhookHandler(private val gh: GitHub, private val jdbi: Jdbi) {
     suspend fun CallContext.handleWebhook(requestContent: String) {
         val reader = StringReader(requestContent)
 
@@ -51,8 +51,8 @@ class WebhookHandler(private val gitHub: GitHub, private val jdbi: Jdbi) {
     private suspend fun handleEvent(event: String, reader: Reader) = coroutineScope {
         launch {
             when (event) {
-                "issues" -> handleIssue(gitHub.parseEventPayload(reader))
-                "issue_comment" -> handleIssueComment(gitHub.parseEventPayload(reader))
+                "issues" -> handleIssue(gh.parseEventPayload(reader))
+                "issue_comment" -> handleIssueComment(gh.parseEventPayload(reader))
             }
         }
     }
