@@ -85,12 +85,13 @@ private suspend fun syncIssues(gh: GitHub, jdbi: Jdbi) = coroutineScope {
                 }
 
                 val lines = extractStacktrace(issue) ?: continue
+                val title = extractAndModifyTitle(issue)
 
                 handle.useTransaction<Exception> {
                     logger.debug("Syncing issue #{}", issue.number)
                     val stacktraceId = queries.upsertStacktrace(lines)
                     logger.trace("Assigning stacktrace_id {} to issue #{}", stacktraceId, issue.number)
-                    queries.upsertIssue(issue.number, stacktraceId, IssueState.from(issue.state))
+                    queries.upsertIssue(issue.number, title, stacktraceId, IssueState.from(issue.state))
                     logger.trace("Issue #{} synced", issue.number)
                 }
 
@@ -186,6 +187,16 @@ enum class IssueState {
             }
         }
     }
+}
+
+fun extractAndModifyTitle(issue: GHIssue): String {
+    // TODO: in the future have the title set correctly in the first place
+    val body = issue.body
+    val title = body.substringAfter("\n```\n").substringBefore("\n")
+    if (title != issue.title) {
+        issue.title = title
+    }
+    return title
 }
 
 fun extractStacktrace(issue: GHIssue): List<String>? {

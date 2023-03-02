@@ -47,6 +47,7 @@ interface Tables {
         """
         CREATE TABLE IF NOT EXISTS issues (
             id              INT         NOT NULL PRIMARY KEY CHECK (id > 0),
+            title           TEXT        NOT NULL,
             stacktrace_id   INT         NOT NULL,
             state           issue_state NOT NULL,
             duplicate_of    INT         NULL,

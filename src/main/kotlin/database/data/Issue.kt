@@ -23,6 +23,8 @@ import org.jdbi.v3.core.mapper.reflect.ColumnName
 data class Issue(
     @ColumnName("id")
     val id: Int,
+    @ColumnName("title")
+    val title: String,
     @ColumnName("stacktrace_id")
     val stacktraceId: Int,
     @ColumnName("state")

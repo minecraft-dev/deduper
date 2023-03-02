@@ -60,16 +60,22 @@ interface Queries {
         return getIssue(id) != null
     }
 
-    @SqlUpdate("INSERT INTO issues (id, stacktrace_id, state) VALUES (:id, :stacktraceId, :state::issue_state)")
-    fun insertIssue(@Bind id: Int, @Bind stacktraceId: Int, @Bind state: IssueState)
+    @SqlUpdate("INSERT INTO issues (id, title, stacktrace_id, state) VALUES (:id, :title, :stacktraceId, :state::issue_state)")
+    fun insertIssue(@Bind id: Int, @Bind title: String, @Bind stacktraceId: Int, @Bind state: IssueState)
 
-    fun upsertIssue(id: Int, stacktraceId: Int, state: IssueState) {
+    fun upsertIssue(id: Int, title: String, stacktraceId: Int, state: IssueState) {
         synchronized(issueLock) {
             if (!doesIssueExist(id)) {
-                insertIssue(id, stacktraceId, state)
+                insertIssue(id, title, stacktraceId, state)
+            } else {
+                setIssueTitle(id, title) // TODO: remove this once everything is migrated
             }
         }
     }
+
+    // TODO: remove this once everything is migrated
+    @SqlUpdate("UPDATE issues SET title = :title WHERE id = :issueId")
+    fun setIssueTitle(@Bind id: Int, @Bind title: String)
 
     @SqlBatch("UPDATE issues SET duplicate_of = :duplicateOfId WHERE id = :issueId")
     fun updateDuplicateIssues(@BindKotlin duplicateIssues: List<DuplicateIssue>)

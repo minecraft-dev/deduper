@@ -72,13 +72,14 @@ class WebhookHandler(private val gh: GitHub, private val jdbi: Jdbi) {
 
         logger.info("Syncing new issue: #{}", event.issue.number)
         val lines = extractStacktrace(event.issue) ?: return
+        val title = extractAndModifyTitle(event.issue)
 
         try {
             jdbi.open().use { handler ->
                 val queries = handler.attach<Queries>()
 
                 val stacktraceId = queries.upsertStacktrace(lines)
-                queries.upsertIssue(event.issue.number, stacktraceId, IssueState.open)
+                queries.upsertIssue(event.issue.number, title, stacktraceId, IssueState.open)
 
                 queries.closeIfDuplicateIssue(event.issue, stacktraceId)
             }
