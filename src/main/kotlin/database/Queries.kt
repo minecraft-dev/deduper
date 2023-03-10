@@ -28,7 +28,6 @@ import org.jdbi.v3.sqlobject.statement.SqlQuery
 import org.jdbi.v3.sqlobject.statement.SqlUpdate
 
 private val stacktraceLock = Any()
-private val issueLock = Any()
 
 @RegisterKotlinMapper(Issue::class)
 interface Queries {
@@ -56,26 +55,18 @@ interface Queries {
     @SqlQuery("SELECT i.* FROM issues i WHERE i.id = :id")
     fun getIssue(@Bind id: Int): Issue?
 
-    fun doesIssueExist(id: Int): Boolean {
-        return getIssue(id) != null
-    }
-
-    @SqlUpdate("INSERT INTO issues (id, title, stacktrace_id, state) VALUES (:id, :title, :stacktraceId, :state::issue_state)")
-    fun insertIssue(@Bind id: Int, @Bind title: String, @Bind stacktraceId: Int, @Bind state: IssueState)
-
-    fun upsertIssue(id: Int, title: String, stacktraceId: Int, state: IssueState) {
-        synchronized(issueLock) {
-            if (!doesIssueExist(id)) {
-                insertIssue(id, title, stacktraceId, state)
-            } else {
-                setIssueTitle(id, title) // TODO: remove this once everything is migrated
-            }
-        }
-    }
-
-    // TODO: remove this once everything is migrated
-    @SqlUpdate("UPDATE issues SET title = :title WHERE id = :issueId")
-    fun setIssueTitle(@Bind id: Int, @Bind title: String)
+    @SqlUpdate(
+        """
+        INSERT INTO issues (id, title, stacktrace_id, state)
+        VALUES (:id, :title, :stacktrace_id, :state)
+        ON CONFLICT (id)
+        DO UPDATE SET
+            title = excluded.title,
+            stacktrace_id = excluded.stacktrace_id,
+            state = excluded.state
+        """
+    )
+    fun upsertIssue(id: Int, title: String, stacktraceId: Int, state: IssueState)
 
     @SqlBatch("UPDATE issues SET duplicate_of = :duplicateOfId WHERE id = :issueId")
     fun updateDuplicateIssues(@BindKotlin duplicateIssues: List<DuplicateIssue>)

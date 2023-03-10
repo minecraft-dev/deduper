@@ -195,8 +195,8 @@ fun extractAndModifyTitle(issue: GHIssue): String {
     var title = body.substringAfter("\n```\n").substringBefore("\n")
     if (title.isEmpty()) {
         title = "[auto-generated] Exception in plugin"
-    } else if (title.length > 256) {
-        title = title.substring(0, 253) + "..."
+    } else if (title.length > 255) {
+        title = title.substring(0, 252) + "..."
     }
     if (title != issue.title) {
         issue.title = title

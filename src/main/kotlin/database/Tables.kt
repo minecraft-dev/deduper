@@ -46,11 +46,11 @@ interface Tables {
     @SqlScript(
         """
         CREATE TABLE IF NOT EXISTS issues (
-            id              INT         NOT NULL PRIMARY KEY CHECK (id > 0),
-            title           TEXT        NOT NULL,
-            stacktrace_id   INT         NOT NULL,
-            state           issue_state NOT NULL,
-            duplicate_of    INT         NULL,
+            id              INT          NOT NULL PRIMARY KEY CHECK (id > 0),
+            title           VARCHAR(255) NOT NULL,
+            stacktrace_id   INT          NOT NULL,
+            state           issue_state  NOT NULL,
+            duplicate_of    INT          NULL,
         
             FOREIGN KEY (stacktrace_id) REFERENCES stacktraces (id)
                 ON DELETE RESTRICT
