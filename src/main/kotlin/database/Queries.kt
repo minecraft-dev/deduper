@@ -58,7 +58,7 @@ interface Queries {
     @SqlUpdate(
         """
         INSERT INTO issues (id, title, stacktrace_id, state)
-        VALUES (:id, :title, :stacktrace_id, :state)
+        VALUES (:id, :title, :stacktraceId, :state)
         ON CONFLICT (id)
         DO UPDATE SET
             title = excluded.title,
@@ -66,7 +66,7 @@ interface Queries {
             state = excluded.state
         """
     )
-    fun upsertIssue(id: Int, title: String, stacktraceId: Int, state: IssueState)
+    fun upsertIssue(@Bind id: Int, @Bind title: String, @Bind stacktraceId: Int, @Bind state: IssueState)
 
     @SqlBatch("UPDATE issues SET duplicate_of = :duplicateOfId WHERE id = :issueId")
     fun updateDuplicateIssues(@BindKotlin duplicateIssues: List<DuplicateIssue>)

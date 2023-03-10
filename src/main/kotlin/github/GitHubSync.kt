@@ -190,6 +190,11 @@ enum class IssueState {
 }
 
 fun extractAndModifyTitle(issue: GHIssue): String {
+    if (issue.title != "[auto-generated] Exception in plugin") {
+        // if the title name has already been modified, keep it
+        // this allows us to modify the title without it getting overwritten
+        return issue.title
+    }
     // TODO: in the future have the title set correctly in the first place
     val body = issue.body
     var title = body.substringAfter("\n```\n").substringBefore("\n")
