@@ -28,7 +28,6 @@ import io.ktor.server.plugins.callloging.CallLogging
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.plugins.forwardedheaders.ForwardedHeaders
 import io.ktor.server.plugins.forwardedheaders.XForwardedHeaders
-import io.ktor.server.request.path
 import io.mcdev.deduper.database.configureJdbi
 import io.mcdev.deduper.database.initialize
 import io.mcdev.deduper.database.openDbConnection
@@ -56,10 +55,6 @@ fun main() {
             val app = embeddedServer(Netty, port = config.server.port, host = config.server.host) {
                 install(ForwardedHeaders)
                 install(XForwardedHeaders)
-                install(CallLogging) {
-                    level = org.slf4j.event.Level.INFO
-                    filter { call -> call.request.path().startsWith("/") }
-                }
                 install(CallLogging)
 
                 install(ContentNegotiation) {
