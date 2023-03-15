@@ -19,6 +19,7 @@ package io.mcdev.deduper.database
 import io.mcdev.deduper.database.data.CloseableIssue
 import io.mcdev.deduper.database.data.Issue
 import io.mcdev.deduper.github.IssueState
+import java.time.Instant
 import org.jdbi.v3.sqlobject.customizer.Bind
 import org.jdbi.v3.sqlobject.kotlin.BindKotlin
 import org.jdbi.v3.sqlobject.kotlin.RegisterKotlinMapper
@@ -71,14 +72,18 @@ interface Queries {
     @SqlBatch("UPDATE issues SET duplicate_of = :duplicateOfId WHERE id = :issueId")
     fun updateDuplicateIssues(@BindKotlin duplicateIssues: List<DuplicateIssue>)
 
-    @SqlUpdate(
+    fun setIssueTarget(stacktraceId: Int, issueId: Int) {
+        setManyIssueTargets(listOf(StacktraceTargetUpdate(stacktraceId, issueId)))
+    }
+
+    @SqlBatch(
         """
         INSERT INTO stacktrace_targets (stacktrace_id, issue_id)
         VALUES (:stacktraceId, :issueId)
         ON CONFLICT (stacktrace_id) DO UPDATE SET issue_id = excluded.issue_id
         """,
     )
-    fun setIssueTarget(@Bind stacktraceId: Int, @Bind issueId: Int)
+    fun setManyIssueTargets(@BindKotlin targetUpdates: List<StacktraceTargetUpdate>)
 
     @SqlQuery("SELECT t.issue_id FROM stacktrace_targets t WHERE t.stacktrace_id = :stacktraceId")
     fun findDuplicateIssue(@Bind stacktraceId: Int): Int?
@@ -102,3 +107,6 @@ data class DuplicateIssue(val issueId: Int, val duplicateOfId: Int)
 
 @JvmRecord
 data class IssueStateUpdate(val issueId: Int, val state: IssueState)
+
+@JvmRecord
+data class StacktraceTargetUpdate(val stacktraceId: Int, val issueId: Int, val createdAt: Instant? = null)

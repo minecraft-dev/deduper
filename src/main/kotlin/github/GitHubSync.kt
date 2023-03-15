@@ -21,11 +21,14 @@ package io.mcdev.deduper.github
 import io.mcdev.deduper.database.DuplicateIssue
 import io.mcdev.deduper.database.IssueStateUpdate
 import io.mcdev.deduper.database.Queries
+import io.mcdev.deduper.database.StacktraceTargetUpdate
+import io.mcdev.deduper.database.data.CloseableIssue
 import io.mcdev.deduper.getLogger
 import java.time.LocalTime
 import java.time.ZoneOffset
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
+import java.util.concurrent.ConcurrentLinkedQueue
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
@@ -101,6 +104,7 @@ private suspend fun syncIssues(gh: GitHub, jdbi: Jdbi) = coroutineScope {
             // Find and mark duplicate issues
             val asyncDupes = mutableListOf<Deferred<DuplicateIssue?>>()
             val states = mutableListOf<IssueStateUpdate>()
+            val stacktraceTargetUpdates = ConcurrentLinkedQueue<StacktraceTargetUpdate>()
 
             for (issue in issues) {
                 states += IssueStateUpdate(issue.number, IssueState.from(issue.state))
@@ -112,12 +116,24 @@ private suspend fun syncIssues(gh: GitHub, jdbi: Jdbi) = coroutineScope {
                     // which issue this is the duplicate of.
                     //
                     // Loop through all comments to make sure a later comment doesn't override the first comment
+                    val dbIssue = queries.getIssue(issue.number)
                     for (comment in issue.listComments()) {
                         val num = getDuplicateOfId(comment) ?: continue
                         logger.trace("Marking issue #{} as a duplicate of #{}", issue.number, num)
 
                         dupe = DuplicateIssue(issueId = issue.number, duplicateOfId = num)
+
+                        dbIssue?.let {
+                            stacktraceTargetUpdates.add(
+                                StacktraceTargetUpdate(
+                                    it.stacktraceId,
+                                    num,
+                                    comment.createdAt.toInstant(),
+                                ),
+                            )
+                        }
                     }
+
                     dupe
                 }
             }
@@ -129,6 +145,9 @@ private suspend fun syncIssues(gh: GitHub, jdbi: Jdbi) = coroutineScope {
 
             logger.debug("Executing batch duplicates update for {} issues", dupes.size)
             queries.updateDuplicateIssues(dupes)
+            // sort duplicate updates by date to make sure we maintain any later comments which override the targets
+            // of previous comments
+            queries.setManyIssueTargets(stacktraceTargetUpdates.sortedWith(nullsFirst(compareBy { it.createdAt })))
         }
 
         logger.info("GitHub sync complete")
@@ -145,32 +164,42 @@ private fun updateIssues(gh: GitHub, jdbi: Jdbi) {
             val queries = handle.attach<Queries>()
 
             val closeableIssues = queries.findCloseableIssues()
+            val actuallyClosedIssues = mutableListOf<CloseableIssue>()
+            logger.info("Found {} duplicate issues to close", closeableIssues.size)
             for (closeableIssue in closeableIssues) {
                 try {
                     val issue = repo.getIssue(closeableIssue.issueId)
-                    queries.closeIfDuplicateIssue(issue, closeableIssue.stacktraceId)
+                    if (queries.closeIfDuplicateIssue(issue, closeableIssue.stacktraceId)) {
+                        actuallyClosedIssues += closeableIssue
+                    }
                 } catch (e: Throwable) {
                     logger.error("Failure in checking closeable issue #{}", closeableIssue.issueId, e)
                 }
             }
+
+            // we should receive the webhook notification telling us the issue is closed, but just to be safe, mark it
+            // here while we have the chance
+            queries.updateIssueStates(actuallyClosedIssues.map { IssueStateUpdate(it.issueId, IssueState.closed) })
         }
     } catch (e: Throwable) {
         logger.error("Failure finding closeable issues", e)
     }
 }
 
-fun Queries.closeIfDuplicateIssue(issue: GHIssue, stacktraceId: Int) {
+fun Queries.closeIfDuplicateIssue(issue: GHIssue, stacktraceId: Int): Boolean {
     try {
         // Check if it's a duplicate
-        val dupeId = findDuplicateIssue(stacktraceId) ?: return
+        val dupeId = findDuplicateIssue(stacktraceId) ?: return false
         logger.info("Issue #{} is a duplicate of #{}", issue.number, dupeId)
         // if so, mark it and close
         issue.comment("Duplicate of #$dupeId")
         issue.close()
         logger.info("Issue #{} marked as duplicate of #{} and closed successfully", issue.number, dupeId)
+        return true
     } catch (e: Throwable) {
         val msg = "Failure during duplicate issue check for issue #{}, with stacktrace {}"
         logger.error(msg, issue.number, stacktraceId, e)
+        return false
     }
 }
 
