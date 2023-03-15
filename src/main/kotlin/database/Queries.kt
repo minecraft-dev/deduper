@@ -42,7 +42,7 @@ interface Queries {
     @GetGeneratedKeys("id")
     fun insertStacktrace(@Bind lines: List<String>): Int
 
-    fun upsertStacktrace(@Bind lines: List<String>): Int {
+    fun upsertStacktrace(lines: List<String>): Int {
         // Postgres doesn't have a fully working upsert mechanism
         // ON CONFLICT DO NOTHING doesn't work with RETURNING, and the workaround is
         // pretty gross: https://stackoverflow.com/a/42217872
