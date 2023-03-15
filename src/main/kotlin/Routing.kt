@@ -18,16 +18,15 @@
 
 package io.mcdev.deduper
 
-import io.ktor.application.Application
-import io.ktor.application.ApplicationCall
-import io.ktor.application.call
-import io.ktor.application.install
-import io.ktor.features.StatusPages
 import io.ktor.http.HttpStatusCode
-import io.ktor.response.respond
-import io.ktor.routing.post
-import io.ktor.routing.route
-import io.ktor.routing.routing
+import io.ktor.server.application.Application
+import io.ktor.server.application.ApplicationCall
+import io.ktor.server.application.install
+import io.ktor.server.plugins.statuspages.StatusPages
+import io.ktor.server.response.respond
+import io.ktor.server.routing.post
+import io.ktor.server.routing.route
+import io.ktor.server.routing.routing
 import io.ktor.util.pipeline.PipelineContext
 import io.mcdev.deduper.github.WebhookHandler
 import io.mcdev.deduper.github.verifyWebhook
@@ -39,13 +38,13 @@ typealias CallContext = PipelineContext<Unit, ApplicationCall>
 
 fun Application.configureRouting(gh: GitHub, jdbi: Jdbi, config: DeduperConfig) {
     install(StatusPages) {
-        exception<BadRequestException> {
-            call.respond(HttpStatusCode.BadRequest, MessageResponse(it.message))
+        exception<BadRequestException> { call, cause ->
+            call.respond(HttpStatusCode.BadRequest, MessageResponse(cause.message))
         }
-        exception<AuthenticationException> {
+        exception<AuthenticationException> { call, _ ->
             call.respond(HttpStatusCode.Unauthorized)
         }
-        exception<AuthorizationException> {
+        exception<AuthorizationException> { call, _ ->
             call.respond(HttpStatusCode.Forbidden)
         }
     }

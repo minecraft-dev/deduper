@@ -32,7 +32,7 @@ import kotlinx.serialization.hocon.decodeFromConfig
 data class DeduperConfig(
     val server: ServerConfig,
     val database: DatabaseConfig,
-    val github: GitHubApiConfig
+    val github: GitHubApiConfig,
 ) {
 
     companion object {
@@ -77,7 +77,7 @@ data class DatabaseConfig(
     val password: String,
     val host: String,
     val port: Int = 5432,
-    val database: String
+    val database: String,
 )
 
 @JvmRecord
@@ -86,5 +86,5 @@ data class GitHubApiConfig(
     val privateKeyFile: String,
     val appId: String,
     val organization: String,
-    val webhookSecret: String
+    val webhookSecret: String,
 )

@@ -16,10 +16,10 @@
 
 package io.mcdev.deduper.github
 
-import io.ktor.application.call
-import io.ktor.features.BadRequestException
 import io.ktor.http.HttpStatusCode
-import io.ktor.response.respond
+import io.ktor.server.application.call
+import io.ktor.server.plugins.BadRequestException
+import io.ktor.server.response.respond
 import io.mcdev.deduper.CallContext
 import io.mcdev.deduper.database.DuplicateIssue
 import io.mcdev.deduper.database.IssueStateUpdate

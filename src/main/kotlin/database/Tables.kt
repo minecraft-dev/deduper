@@ -26,7 +26,7 @@ interface Tables {
             id      SERIAL  NOT NULL PRIMARY KEY,
             lines   TEXT[]  NOT NULL UNIQUE
         );
-        """
+        """,
     )
     fun initializeStacktraces()
 
@@ -41,7 +41,7 @@ interface Tables {
             WHEN duplicate_object THEN NULL;
         END;
         ';
-        """
+        """,
     )
     @SqlScript(
         """
@@ -60,7 +60,7 @@ interface Tables {
                 ON DELETE RESTRICT
                 ON UPDATE RESTRICT
         );
-        """
+        """,
     )
     @SqlScript("CREATE INDEX IF NOT EXISTS stacktrace_id_index ON issues (stacktrace_id);")
     @SqlScript("CREATE INDEX IF NOT EXISTS duplicate_of_index ON issues (duplicate_of);")
@@ -81,7 +81,7 @@ interface Tables {
                 ON DELETE RESTRICT
                 ON UPDATE RESTRICT
         );
-        """
+        """,
     )
     fun initializeStacktraceTargets()
 }

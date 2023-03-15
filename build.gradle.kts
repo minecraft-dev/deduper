@@ -8,9 +8,11 @@ plugins {
     alias(libs.plugins.licenser)
 }
 
+val jvmVersion = 19
+
 java {
     toolchain {
-        languageVersion.set(JavaLanguageVersion.of(17))
+        languageVersion.set(JavaLanguageVersion.of(jvmVersion))
     }
 }
 
@@ -27,7 +29,7 @@ dependencies {
     implementation(kotlin("reflect"))
 
     implementation(libs.kotlin.coroutines)
-    implementation(libs.kotlin.serialization.asProvider()) {
+    implementation(libs.kotlin.serialization) {
         excludeKotlin()
     }
 
@@ -36,6 +38,8 @@ dependencies {
     }
 
     implementation(libs.bundles.logging)
+
+    implementation(libs.typesafe.config)
     implementation(libs.kotlin.serialization.hocon) {
         excludeKotlin()
     }
@@ -65,10 +69,10 @@ fun ExternalModuleDependency.excludeKotlin() {
 
 tasks.withType<KotlinCompile>().configureEach {
     kotlinOptions {
-        jvmTarget = "17"
+        jvmTarget = "$jvmVersion"
         freeCompilerArgs = listOf(
-            "-Xjvm-default=enable",
-            "-opt-in=io.ktor.server.engine.EngineAPI",
+            "-Xjvm-default=all",
+            "-Xjdk-release=$jvmVersion",
             "-opt-in=kotlin.contracts.ExperimentalContracts",
             "-opt-in=kotlinx.serialization.ExperimentalSerializationApi",
         )
@@ -80,16 +84,12 @@ tasks.test {
     useJUnitPlatform()
 }
 
-ktlint {
-    enableExperimentalRules.set(true)
-    disabledRules.addAll("experimental:trailing-comma", "experimental:enum-entry-name-case")
-    version.set("0.43.2")
-}
-tasks.withType(org.jlleitschuh.gradle.ktlint.tasks.KtLintFormatTask::class) {
-}
-
 license {
     header.set(resources.text.fromFile(file("header.txt")))
+}
+
+ktlint {
+    version.set("0.48.2")
 }
 
 tasks.register("format") {

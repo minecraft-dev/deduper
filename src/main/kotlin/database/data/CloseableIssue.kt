@@ -18,9 +18,10 @@ package io.mcdev.deduper.database.data
 
 import org.jdbi.v3.core.mapper.reflect.ColumnName
 
+@JvmRecord
 data class CloseableIssue(
     @ColumnName("issue_id")
     val issueId: Int,
     @ColumnName("stacktrace_id")
-    val stacktraceId: Int
+    val stacktraceId: Int,
 )

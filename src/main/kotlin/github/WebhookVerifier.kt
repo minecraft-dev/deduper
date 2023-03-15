@@ -18,11 +18,11 @@
 
 package io.mcdev.deduper.github
 
-import io.ktor.application.ApplicationCall
-import io.ktor.application.call
-import io.ktor.features.BadRequestException
-import io.ktor.request.contentCharset
-import io.ktor.request.receiveChannel
+import io.ktor.server.application.ApplicationCall
+import io.ktor.server.application.call
+import io.ktor.server.plugins.BadRequestException
+import io.ktor.server.request.contentCharset
+import io.ktor.server.request.receiveChannel
 import io.ktor.util.pipeline.PipelineContext
 import io.ktor.util.toByteArray
 import java.util.HexFormat

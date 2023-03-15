@@ -16,12 +16,12 @@
 
 package io.mcdev.deduper
 
-import io.ktor.application.call
 import io.ktor.http.ContentType
 import io.ktor.http.content.PartData
 import io.ktor.http.content.forEachPart
-import io.ktor.request.contentType
-import io.ktor.request.receiveMultipart
+import io.ktor.server.application.call
+import io.ktor.server.request.contentType
+import io.ktor.server.request.receiveMultipart
 import io.mcdev.deduper.submission.Submission
 import io.mcdev.deduper.submission.SubmissionAttachment
 import io.mcdev.deduper.submission.SubmissionMetadata

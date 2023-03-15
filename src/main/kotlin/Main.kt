@@ -18,22 +18,24 @@
 
 package io.mcdev.deduper
 
-import io.ktor.application.ApplicationStarted
-import io.ktor.application.install
-import io.ktor.features.CallLogging
-import io.ktor.features.ContentNegotiation
-import io.ktor.features.ForwardedHeaderSupport
-import io.ktor.features.XForwardedHeaderSupport
-import io.ktor.serialization.json
+import io.ktor.serialization.kotlinx.json.json
+import io.ktor.server.application.ApplicationStarted
+import io.ktor.server.application.install
 import io.ktor.server.engine.addShutdownHook
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
+import io.ktor.server.plugins.callloging.CallLogging
+import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.server.plugins.forwardedheaders.ForwardedHeaders
+import io.ktor.server.plugins.forwardedheaders.XForwardedHeaders
+import io.ktor.server.request.path
 import io.mcdev.deduper.database.configureJdbi
 import io.mcdev.deduper.database.initialize
 import io.mcdev.deduper.database.openDbConnection
 import io.mcdev.deduper.github.initializeApp
 import io.mcdev.deduper.github.scheduleSyncIssues
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.Json
 
 private val logger = getLogger("io.mcdev.deduper.Main")
 
@@ -50,13 +52,23 @@ fun main() {
 
             logger.info("Starting webserver")
 
+            @Suppress("ExtractKtorModule")
             val app = embeddedServer(Netty, port = config.server.port, host = config.server.host) {
-                install(ForwardedHeaderSupport)
-                install(XForwardedHeaderSupport)
+                install(ForwardedHeaders)
+                install(XForwardedHeaders)
+                install(CallLogging) {
+                    level = org.slf4j.event.Level.INFO
+                    filter { call -> call.request.path().startsWith("/") }
+                }
                 install(CallLogging)
 
                 install(ContentNegotiation) {
-                    json()
+                    json(
+                        Json {
+                            prettyPrint = true
+                            isLenient = true
+                        },
+                    )
                 }
 
                 configureRouting(gh, jdbi, config)

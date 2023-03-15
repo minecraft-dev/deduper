@@ -3,5 +3,9 @@ indent_style=space
 indent_size=4
 insert_final_newline=true
 max_line_length=120
+
+# noinspection EditorConfigKeyCorrectness
 [*.{kt,kts}]
 ij_kotlin_imports_layout=*
+ktlint_code_style = official
+ktlint_enum-entry-name-case = disabled

@@ -18,10 +18,10 @@
 
 package io.mcdev.deduper.submission
 
-import io.ktor.application.ApplicationCall
-import io.ktor.application.call
 import io.ktor.http.HttpStatusCode
-import io.ktor.response.respond
+import io.ktor.server.application.ApplicationCall
+import io.ktor.server.application.call
+import io.ktor.server.response.respond
 import io.ktor.util.pipeline.PipelineContext
 import io.mcdev.deduper.MessageResponse
 import kotlinx.serialization.Serializable
@@ -41,7 +41,7 @@ data class SubmissionMetadata(
     val isEap: Boolean,
     val ideaBuild: String,
     val ideaVersion: String,
-    val lastAction: String?
+    val lastAction: String?,
 ) {
     companion object {
         const val PartName = "metadata"
@@ -67,5 +67,5 @@ data class SubmissionAttachment(val displayText: String?, val body: String) {
 data class Submission(
     val metadata: SubmissionMetadata,
     val stacktrace: SubmissionStacktrace,
-    val attachments: List<SubmissionAttachment>
+    val attachments: List<SubmissionAttachment>,
 )

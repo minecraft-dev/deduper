@@ -53,7 +53,6 @@ fun DataSource.configureJdbi(): Jdbi {
     jdbi.installPlugin(PostgresPlugin())
     jdbi.installPlugin(KotlinPlugin())
     jdbi.installPlugin(KotlinSqlObjectPlugin())
-
     return jdbi
 }
 

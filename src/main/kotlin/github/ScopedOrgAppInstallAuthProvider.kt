@@ -31,7 +31,7 @@ import org.kohsuke.github.authorization.AuthorizationProvider
 class ScopedOrgAppInstallAuthProvider(
     private val organization: String,
     private val permissions: Map<String, GHPermissionType>,
-    authorizationProvider: AuthorizationProvider
+    authorizationProvider: AuthorizationProvider,
 ) : GitHub.DependentAuthorizationProvider(authorizationProvider) {
 
     private var authorization: String? = null

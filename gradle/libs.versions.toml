@@ -1,31 +1,37 @@
 [versions]
-kotlin = "1.6.10"
-kotlin-serialization = "1.3.2"
-ktor = "1.6.7"
-junit = "5.8.2"
-jjwt = "0.11.2"
+kotlin = "1.8.10"
+kotlin-serialization = "1.5.0"
+ktor = "2.2.4"
+junit = "5.9.2"
+jjwt = "0.11.5"
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
-ktlint = "org.jlleitschuh.gradle.ktlint:10.2.0"
+ktlint = "org.jlleitschuh.gradle.ktlint:11.3.1"
 licenser = "org.cadixdev.licenser:0.6.1"
 
 [libraries]
-kotlin-coroutines = "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.0"
+kotlin-coroutines = "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4"
 kotlin-serialization = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "kotlin-serialization" }
 
 # Ktor
-ktor-server-core = { module = "io.ktor:ktor-server-core", version.ref = "ktor" }
+ktor-server-core = { module = "io.ktor:ktor-server-core-jvm", version.ref = "ktor" }
 ktor-server-netty = { module = "io.ktor:ktor-server-netty", version.ref = "ktor" }
-ktor-server-hostCommon = { module = "io.ktor:ktor-server-host-common", version.ref = "ktor" }
+ktor-server-hostCommon = { module = "io.ktor:ktor-server-host-common-jvm", version.ref = "ktor" }
+ktor-server-forwardedHeader = { module = "io.ktor:ktor-server-forwarded-header-jvm", version.ref = "ktor" }
+ktor-server-callLogging = { module = "io.ktor:ktor-server-call-logging-jvm", version.ref = "ktor" }
+ktor-server-contentNegotiation = { module = "io.ktor:ktor-server-content-negotiation", version.ref = "ktor" }
+ktor-server-statusPages = { module = "io.ktor:ktor-server-status-pages-jvm", version.ref = "ktor" }
+
 ktor-serialization = { module = "io.ktor:ktor-serialization", version.ref = "ktor" }
+ktor-serialization-json = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor" }
 
 # Database
-postgres = "org.postgresql:postgresql:42.3.1"
-hikari = "com.zaxxer:HikariCP:5.0.0"
+postgres = "org.postgresql:postgresql:42.5.4"
+hikari = "com.zaxxer:HikariCP:5.0.1"
 
-jdbi-bom = "org.jdbi:jdbi3-bom:3.26.0"
+jdbi-bom = "org.jdbi:jdbi3-bom:3.37.1"
 jdbi-core.module = "org.jdbi:jdbi3-core"
 jdbi-sqlobject.module = "org.jdbi:jdbi3-sqlobject"
 jdbi-postgres.module = "org.jdbi:jdbi3-postgres"
@@ -33,18 +39,18 @@ jdbi-kotlin.module = "org.jdbi:jdbi3-sqlobject"
 jdbi-kotlin-sqlobject.module = "org.jdbi:jdbi3-kotlin-sqlobject"
 
 # GitHub
-github = "org.kohsuke:github-api:1.301"
+github = "org.kohsuke:github-api:1.314"
 
 jjwt-api = { module = "io.jsonwebtoken:jjwt-api", version.ref = "jjwt" }
 jjwt-impl = { module = "io.jsonwebtoken:jjwt-impl", version.ref = "jjwt" }
 jjwt-gson = { module = "io.jsonwebtoken:jjwt-gson", version.ref = "jjwt" }
 
 # Logging
-slf4j = "org.slf4j:slf4j-api:1.7.32"
-logback = "ch.qos.logback:logback-classic:1.2.9"
+slf4j = "org.slf4j:slf4j-api:2.0.6"
+logback = "ch.qos.logback:logback-classic:1.4.5"
 
 # Hocon config
-typesafe-config = "com.typesafe:config:1.4.1"
+typesafe-config = "com.typesafe:config:1.4.2"
 kotlin-serialization-hocon = { module = "org.jetbrains.kotlinx:kotlinx-serialization-hocon", version.ref = "kotlin-serialization" }
 
 # Tests
@@ -56,7 +62,11 @@ junit-engine = { module = "org.junit.jupiter:junit-jupiter-engine", version.ref 
 
 [bundles]
 logging = ["slf4j", "logback"]
-ktor = ["ktor-server-core", "ktor-server-netty", "ktor-server-hostCommon", "ktor-serialization"]
+ktor = [
+    "ktor-server-core", "ktor-server-netty", "ktor-server-hostCommon", "ktor-server-forwardedHeader",
+    "ktor-server-callLogging", "ktor-server-contentNegotiation", "ktor-server-statusPages", "ktor-serialization",
+    "ktor-serialization-json"
+]
 jdbi = ["jdbi-core", "jdbi-sqlobject"]
 jdbi-kotlin = ["jdbi-kotlin", "jdbi-kotlin-sqlobject"]
 jjwt = ["jjwt-impl", "jjwt-gson"]

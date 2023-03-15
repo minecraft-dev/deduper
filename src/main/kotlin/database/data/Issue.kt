@@ -30,5 +30,5 @@ data class Issue(
     @ColumnName("state")
     val state: IssueState,
     @ColumnName("duplicate_of")
-    val duplicateOf: Int
+    val duplicateOf: Int,
 )

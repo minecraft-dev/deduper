@@ -64,7 +64,7 @@ interface Queries {
             title = excluded.title,
             stacktrace_id = excluded.stacktrace_id,
             state = excluded.state
-        """
+        """,
     )
     fun upsertIssue(@Bind id: Int, @Bind title: String, @Bind stacktraceId: Int, @Bind state: IssueState)
 
@@ -76,7 +76,7 @@ interface Queries {
         INSERT INTO stacktrace_targets (stacktrace_id, issue_id)
         VALUES (:stacktraceId, :issueId)
         ON CONFLICT (stacktrace_id) DO UPDATE SET issue_id = excluded.issue_id
-        """
+        """,
     )
     fun setIssueTarget(@Bind stacktraceId: Int, @Bind issueId: Int)
 
@@ -92,7 +92,7 @@ interface Queries {
         FROM issues i
         INNER JOIN stacktrace_targets st ON i.stacktrace_id = st.stacktrace_id
         WHERE i.state = 'open' AND i.id != st.issue_id
-        """
+        """,
     )
     fun findCloseableIssues(): List<CloseableIssue>
 }
