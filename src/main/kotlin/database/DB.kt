@@ -27,7 +27,6 @@ import org.jdbi.v3.core.Jdbi
 import org.jdbi.v3.core.kotlin.KotlinPlugin
 import org.jdbi.v3.postgres.PostgresPlugin
 import org.jdbi.v3.sqlobject.kotlin.KotlinSqlObjectPlugin
-import org.jdbi.v3.sqlobject.kotlin.attach
 import org.postgresql.ds.PGSimpleDataSource
 
 private val logger = getLogger("io.mcdev.deduper.database.DB")
@@ -57,11 +56,9 @@ fun DataSource.configureJdbi(): Jdbi {
 }
 
 fun Jdbi.initialize() {
-    open().use { handle ->
-        val tables = handle.attach<Tables>()
-
-        tables.initializeStacktraces()
-        tables.initializeIssues()
-        tables.initializeStacktraceTargets()
+    with(Tables::class) {
+        initializeStacktraces()
+        initializeIssues()
+        initializeStacktraceTargets()
     }
 }

@@ -24,6 +24,8 @@ import io.mcdev.deduper.CallContext
 import io.mcdev.deduper.database.DuplicateIssue
 import io.mcdev.deduper.database.IssueStateUpdate
 import io.mcdev.deduper.database.Queries
+import io.mcdev.deduper.database.open
+import io.mcdev.deduper.database.with
 import io.mcdev.deduper.getLogger
 import io.mcdev.deduper.parseEventPayload
 import java.io.Reader
@@ -31,7 +33,6 @@ import java.io.StringReader
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import org.jdbi.v3.core.Jdbi
-import org.jdbi.v3.sqlobject.kotlin.attach
 import org.kohsuke.github.GHEventPayload
 import org.kohsuke.github.GitHub
 
@@ -75,13 +76,11 @@ class WebhookHandler(private val gh: GitHub, private val jdbi: Jdbi) {
         val title = extractAndModifyTitle(event.issue)
 
         try {
-            jdbi.open().use { handler ->
-                val queries = handler.attach<Queries>()
+            jdbi.with(Queries::class) {
+                val stacktraceId = upsertStacktrace(lines)
+                upsertIssue(event.issue.number, title, stacktraceId, IssueState.open)
 
-                val stacktraceId = queries.upsertStacktrace(lines)
-                queries.upsertIssue(event.issue.number, title, stacktraceId, IssueState.open)
-
-                queries.closeIfDuplicateIssue(event.issue, stacktraceId)
+                closeIfDuplicateIssue(event.issue, stacktraceId)
             }
         } catch (e: Throwable) {
             logger.error("Error handling issue opened webhook for issue #{}", event.issue.number, e)
@@ -91,9 +90,8 @@ class WebhookHandler(private val gh: GitHub, private val jdbi: Jdbi) {
     private fun handleIssueClosed(event: GHEventPayload.Issue) {
         logger.info("Marking issue #{} as closed", event.issue.number)
         try {
-            jdbi.open().use { handler ->
-                val queries = handler.attach<Queries>()
-                queries.updateIssueStates(listOf(IssueStateUpdate(event.issue.number, IssueState.closed)))
+            jdbi.with(Queries::class) {
+                updateIssueStates(listOf(IssueStateUpdate(event.issue.number, IssueState.closed)))
             }
         } catch (e: Throwable) {
             logger.error("Error marking issue #{} as closed", event.issue.number, e)
@@ -107,13 +105,11 @@ class WebhookHandler(private val gh: GitHub, private val jdbi: Jdbi) {
         logger.info("Marking #{} as a duplicate of #{}", event.issue.number, duplicateOfId)
 
         try {
-            jdbi.open().use { handler ->
-                val queries = handler.attach<Queries>()
+            jdbi.with(Queries::class) {
+                updateDuplicateIssues(listOf(dupe))
 
-                queries.updateDuplicateIssues(listOf(dupe))
-
-                val issue = queries.getIssue(event.issue.number) ?: return@use
-                queries.setIssueTarget(issue.stacktraceId, duplicateOfId)
+                val issue = getIssue(event.issue.number) ?: return@with
+                setIssueTarget(issue.stacktraceId, duplicateOfId)
                 logger.info("Set issue #{} as the target for stacktrace_id {}", duplicateOfId, issue.stacktraceId)
             }
         } catch (e: Throwable) {

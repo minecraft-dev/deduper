@@ -20,18 +20,25 @@ import io.mcdev.deduper.database.data.CloseableIssue
 import io.mcdev.deduper.database.data.Issue
 import io.mcdev.deduper.github.IssueState
 import java.time.Instant
+import kotlin.contracts.InvocationKind
+import kotlin.contracts.contract
+import kotlin.reflect.KClass
+import org.jdbi.v3.core.Jdbi
+import org.jdbi.v3.sqlobject.SqlObject
 import org.jdbi.v3.sqlobject.customizer.Bind
 import org.jdbi.v3.sqlobject.kotlin.BindKotlin
 import org.jdbi.v3.sqlobject.kotlin.RegisterKotlinMapper
+import org.jdbi.v3.sqlobject.kotlin.attach
 import org.jdbi.v3.sqlobject.statement.GetGeneratedKeys
 import org.jdbi.v3.sqlobject.statement.SqlBatch
 import org.jdbi.v3.sqlobject.statement.SqlQuery
 import org.jdbi.v3.sqlobject.statement.SqlUpdate
+import org.jdbi.v3.sqlobject.transaction.Transactional
 
 private val stacktraceLock = Any()
 
 @RegisterKotlinMapper(Issue::class)
-interface Queries {
+interface Queries : SqlObject, Transactional<Queries> {
 
     // Postgres doesn't natively support `RETURNING` with `ON CONFLICT DO NOTHING`, so
     // we have to use this rather awful workaround.
@@ -100,6 +107,32 @@ interface Queries {
         """,
     )
     fun findCloseableIssues(): List<CloseableIssue>
+}
+
+inline fun <T : Transactional<T>> Transactional<T>.transaction(crossinline func: T.() -> Unit) {
+    useTransaction<Exception> { q -> q.func() }
+}
+
+inline fun <reified T : Any, R> Jdbi.with(type: KClass<T>, func: T.() -> R): R {
+    contract {
+        callsInPlace(func, InvocationKind.EXACTLY_ONCE)
+    }
+
+    return open().use { handle ->
+        val attached = handle.attach(type)
+        attached.func()
+    }
+}
+
+inline fun <reified T : Any, R> Jdbi.open(type: KClass<T>, func: (T) -> R): R {
+    contract {
+        callsInPlace(func, InvocationKind.EXACTLY_ONCE)
+    }
+
+    return open().use { handle ->
+        val attached = handle.attach(type)
+        func(attached)
+    }
 }
 
 @JvmRecord

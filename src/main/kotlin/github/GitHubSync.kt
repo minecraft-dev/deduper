@@ -23,6 +23,8 @@ import io.mcdev.deduper.database.IssueStateUpdate
 import io.mcdev.deduper.database.Queries
 import io.mcdev.deduper.database.StacktraceTargetUpdate
 import io.mcdev.deduper.database.data.CloseableIssue
+import io.mcdev.deduper.database.open
+import io.mcdev.deduper.database.transaction
 import io.mcdev.deduper.getLogger
 import java.time.LocalTime
 import java.time.ZoneOffset
@@ -36,7 +38,6 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import org.jdbi.v3.core.Jdbi
-import org.jdbi.v3.sqlobject.kotlin.attach
 import org.kohsuke.github.GHIssue
 import org.kohsuke.github.GHIssueComment
 import org.kohsuke.github.GHIssueState
@@ -71,83 +72,9 @@ suspend fun scheduleSyncIssues(gh: GitHub, jdbi: Jdbi) {
 private suspend fun syncIssues(gh: GitHub, jdbi: Jdbi) = coroutineScope {
     logger.info("Syncing issues from GitHub")
 
-    val repo = gh.getRepository("minecraft-dev/mcdev-error-report")
-
     try {
-        jdbi.open().use { handle ->
-            val queries = handle.attach<Queries>()
-
-            // Insert entries for all issues
-            val issues = mutableListOf<GHIssue>()
-            for (issue in repo.getIssues(GHIssueState.ALL)) {
-                logger.trace("Checking issue #{}", issue.number)
-
-                if (issue.user.login != "minecraft-dev-autoreporter") {
-                    logger.debug("Skipping issue #{} with creator: {}", issue.number, issue.user.login)
-                    continue
-                }
-
-                val lines = extractStacktrace(issue) ?: continue
-                val title = extractAndModifyTitle(issue)
-
-                handle.useTransaction<Exception> {
-                    logger.debug("Syncing issue #{}", issue.number)
-                    val stacktraceId = queries.upsertStacktrace(lines)
-                    logger.trace("Assigning stacktrace_id {} to issue #{}", stacktraceId, issue.number)
-                    queries.upsertIssue(issue.number, title, stacktraceId, IssueState.from(issue.state))
-                    logger.trace("Issue #{} synced", issue.number)
-                }
-
-                issues += issue
-            }
-
-            // Find and mark duplicate issues
-            val asyncDupes = mutableListOf<Deferred<DuplicateIssue?>>()
-            val states = mutableListOf<IssueStateUpdate>()
-            val stacktraceTargetUpdates = ConcurrentLinkedQueue<StacktraceTargetUpdate>()
-
-            for (issue in issues) {
-                states += IssueStateUpdate(issue.number, IssueState.from(issue.state))
-
-                asyncDupes += async(Dispatchers.IO) {
-                    var dupe: DuplicateIssue? = null
-                    // Unfortunately we have to look at the comments, rather than the issue events
-                    // This is because the marked_as_duplicate event does not contain info about
-                    // which issue this is the duplicate of.
-                    //
-                    // Loop through all comments to make sure a later comment doesn't override the first comment
-                    val dbIssue = queries.getIssue(issue.number)
-                    for (comment in issue.listComments()) {
-                        val num = getDuplicateOfId(comment) ?: continue
-                        logger.trace("Marking issue #{} as a duplicate of #{}", issue.number, num)
-
-                        dupe = DuplicateIssue(issueId = issue.number, duplicateOfId = num)
-
-                        dbIssue?.let {
-                            stacktraceTargetUpdates.add(
-                                StacktraceTargetUpdate(
-                                    it.stacktraceId,
-                                    num,
-                                    comment.createdAt.toInstant(),
-                                ),
-                            )
-                        }
-                    }
-
-                    dupe
-                }
-            }
-
-            logger.debug("Executing batch state update for {} issues", states.size)
-            queries.updateIssueStates(states)
-
-            val dupes = asyncDupes.mapNotNullTo(ArrayList()) { it.await() }
-
-            logger.debug("Executing batch duplicates update for {} issues", dupes.size)
-            queries.updateDuplicateIssues(dupes)
-            // sort duplicate updates by date to make sure we maintain any later comments which override the targets
-            // of previous comments
-            queries.setManyIssueTargets(stacktraceTargetUpdates.sortedWith(nullsFirst(compareBy { it.createdAt })))
+        jdbi.open(Queries::class) { queries ->
+            syncIssues0(gh, queries)
         }
 
         logger.info("GitHub sync complete")
@@ -156,34 +83,108 @@ private suspend fun syncIssues(gh: GitHub, jdbi: Jdbi) = coroutineScope {
     }
 }
 
-private fun updateIssues(gh: GitHub, jdbi: Jdbi) {
+private suspend fun syncIssues0(gh: GitHub, queries: Queries) = coroutineScope {
     val repo = gh.getRepository("minecraft-dev/mcdev-error-report")
 
-    try {
-        jdbi.open().use { handle ->
-            val queries = handle.attach<Queries>()
+    // Insert entries for all issues
+    val issues = mutableListOf<GHIssue>()
+    for (issue in repo.getIssues(GHIssueState.ALL)) {
+        logger.trace("Checking issue #{}", issue.number)
 
-            val closeableIssues = queries.findCloseableIssues()
-            val actuallyClosedIssues = mutableListOf<CloseableIssue>()
-            logger.info("Found {} duplicate issues to close", closeableIssues.size)
-            for (closeableIssue in closeableIssues) {
-                try {
-                    val issue = repo.getIssue(closeableIssue.issueId)
-                    if (queries.closeIfDuplicateIssue(issue, closeableIssue.stacktraceId)) {
-                        actuallyClosedIssues += closeableIssue
-                    }
-                } catch (e: Throwable) {
-                    logger.error("Failure in checking closeable issue #{}", closeableIssue.issueId, e)
+        if (issue.user.login != "minecraft-dev-autoreporter") {
+            logger.debug("Skipping issue #{} with creator: {}", issue.number, issue.user.login)
+            continue
+        }
+
+        val lines = extractStacktrace(issue) ?: continue
+        val title = extractAndModifyTitle(issue)
+
+        queries.transaction {
+            logger.debug("Syncing issue #{}", issue.number)
+            val stacktraceId = upsertStacktrace(lines)
+            logger.trace("Assigning stacktrace_id {} to issue #{}", stacktraceId, issue.number)
+            upsertIssue(issue.number, title, stacktraceId, IssueState.from(issue.state))
+            logger.trace("Issue #{} synced", issue.number)
+        }
+
+        issues += issue
+    }
+
+    // Find and mark duplicate issues
+    val asyncDupes = mutableListOf<Deferred<DuplicateIssue?>>()
+    val states = mutableListOf<IssueStateUpdate>()
+    val stacktraceTargetUpdates = ConcurrentLinkedQueue<StacktraceTargetUpdate>()
+
+    for (issue in issues) {
+        states += IssueStateUpdate(issue.number, IssueState.from(issue.state))
+
+        asyncDupes += async(Dispatchers.IO) {
+            var dupe: DuplicateIssue? = null
+            // Unfortunately we have to look at the comments, rather than the issue events
+            // This is because the marked_as_duplicate event does not contain info about
+            // which issue this is the duplicate of.
+            //
+            // Loop through all comments to make sure a later comment doesn't override the first comment
+            val dbIssue = queries.getIssue(issue.number)
+            for (comment in issue.listComments()) {
+                val num = getDuplicateOfId(comment) ?: continue
+                logger.trace("Marking issue #{} as a duplicate of #{}", issue.number, num)
+
+                dupe = DuplicateIssue(issueId = issue.number, duplicateOfId = num)
+
+                dbIssue?.let {
+                    stacktraceTargetUpdates.add(
+                        StacktraceTargetUpdate(it.stacktraceId, num, comment.createdAt.toInstant()),
+                    )
                 }
             }
 
-            // we should receive the webhook notification telling us the issue is closed, but just to be safe, mark it
-            // here while we have the chance
-            queries.updateIssueStates(actuallyClosedIssues.map { IssueStateUpdate(it.issueId, IssueState.closed) })
+            dupe
+        }
+    }
+
+    logger.debug("Executing batch state update for {} issues", states.size)
+    queries.updateIssueStates(states)
+
+    val dupes = asyncDupes.mapNotNullTo(ArrayList()) { it.await() }
+
+    logger.debug("Executing batch duplicates update for {} issues", dupes.size)
+    queries.updateDuplicateIssues(dupes)
+    // sort duplicate updates by date to make sure we maintain any later comments which override the targets
+    // of previous comments
+    queries.setManyIssueTargets(stacktraceTargetUpdates.sortedWith(nullsFirst(compareBy { it.createdAt })))
+}
+
+private fun updateIssues(gh: GitHub, jdbi: Jdbi) {
+    try {
+        jdbi.open(Queries::class) { queries ->
+            updateIssues0(gh, queries)
         }
     } catch (e: Throwable) {
         logger.error("Failure finding closeable issues", e)
     }
+}
+
+private fun updateIssues0(gh: GitHub, queries: Queries) {
+    val repo = gh.getRepository("minecraft-dev/mcdev-error-report")
+
+    val closeableIssues = queries.findCloseableIssues()
+    val actuallyClosedIssues = mutableListOf<CloseableIssue>()
+    logger.info("Found {} duplicate issues to close", closeableIssues.size)
+    for (closeableIssue in closeableIssues) {
+        try {
+            val issue = repo.getIssue(closeableIssue.issueId)
+            if (queries.closeIfDuplicateIssue(issue, closeableIssue.stacktraceId)) {
+                actuallyClosedIssues += closeableIssue
+            }
+        } catch (e: Throwable) {
+            logger.error("Failure in checking closeable issue #{}", closeableIssue.issueId, e)
+        }
+    }
+
+    // we should receive the webhook notification telling us the issue is closed, but just to be safe, mark it
+    // here while we have the chance
+    queries.updateIssueStates(actuallyClosedIssues.map { IssueStateUpdate(it.issueId, IssueState.closed) })
 }
 
 fun Queries.closeIfDuplicateIssue(issue: GHIssue, stacktraceId: Int): Boolean {
